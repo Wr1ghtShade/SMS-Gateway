@@ -3,6 +3,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from dataclasses import dataclass, field
 from functools import wraps
+import ipaddress
 import json
 import os
 import re
@@ -80,6 +81,18 @@ MAX_BULK_TASKS     = 200
 
 PHONE_RE = re.compile(r'^(0[67][0-9]{8}|\+33[67][0-9]{8})$')
 
+# ---------------------------------------------------------------------------
+# VALIDATION IP — anti-SSRF : seules les IPv4 privées sont acceptées
+# (un routeur 4G/5G est toujours sur le réseau local)
+# ---------------------------------------------------------------------------
+def validate_router_ip(ip: str) -> bool:
+    """Accept only valid private IPv4 addresses (anti-SSRF)."""
+    try:
+        addr = ipaddress.ip_address(ip)
+        return addr.version == 4 and addr.is_private
+    except ValueError:
+        return False
+
 def validate_number(number: str) -> bool:
     return bool(PHONE_RE.match(number.replace(' ', '').replace('-', '')))
 
@@ -156,6 +169,7 @@ def get_config():
     }), 200
 
 @app.route('/config', methods=['POST'])
+@limiter.limit('10 per minute')
 @csrf_required
 def set_config():
     """Save new config and reload the adapter."""
@@ -170,6 +184,9 @@ def set_config():
 
     if not brand or not ip:
         return jsonify({'status': 'error', 'message': 'Marque et IP sont obligatoires'}), 400
+
+    if not validate_router_ip(ip):
+        return jsonify({'status': 'error', 'message': f'IP invalide : "{ip}". Seules les adresses IPv4 privées sont acceptées (ex: 192.168.x.x).'}), 400
 
     # If password field is masked (unchanged), keep existing password
     if password == '********':
@@ -188,6 +205,7 @@ def set_config():
     return jsonify({'status': 'ok', 'message': 'Configuration sauvegardée.'}), 200
 
 @app.route('/config/test', methods=['POST'])
+@limiter.limit('10 per minute')
 @csrf_required
 def test_config():
     """Test connectivity with the provided (or current) config."""
@@ -198,6 +216,9 @@ def test_config():
     password = data.get('pass', '')
     if password == '********' or not password:
         password = _config.get('pass', '')
+
+    if not validate_router_ip(ip):
+        return jsonify({'status': 'error', 'message': f'IP invalide : "{ip}". Seules les adresses IPv4 privées sont acceptées.'}), 400
 
     try:
         adapter = get_adapter({'brand': brand, 'ip': ip, 'user': user, 'pass': password})
