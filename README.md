@@ -26,6 +26,7 @@ L'onglet **⚙️ Config** permet de connecter n'importe quel routeur 4G/5G supp
 |--------|-------------|-------|--------|
 | Huawei (B525, B535, B818…) | `huawei-lte-api` | ✅ | ✅ |
 | Netgear (LB1120, LB2120, MR1100…) | `eternalegypt` | ✅ | ❌ |
+| GL.iNet LTE/5G (X3000, XE3000, X750…) | `python-glinet` | ✅ | ❌ |
 
 **Champs de connexion :**
 - **Adresse IP** du routeur sur le réseau local
