@@ -1,4 +1,4 @@
-# SMS Gateway — Guide d'installation
+# 📡 SMS Gateway — Guide d'installation
 
 Interface web Flask pour envoyer et recevoir des SMS via un routeur **Huawei LTE** (testé sur B525s-23a). Rate limiting, logging sécurisé (mot de passe masqué), validation des numéros FR.
 
@@ -6,7 +6,7 @@ Interface web Flask pour envoyer et recevoir des SMS via un routeur **Huawei LTE
 
 ---
 
-## Prérequis
+## ✅ Prérequis
 
 | Composant      | Détail                                      |
 |---------------|---------------------------------------------|
@@ -17,7 +17,7 @@ Interface web Flask pour envoyer et recevoir des SMS via un routeur **Huawei LTE
 
 ---
 
-## Installation rapide
+## 🚀 Installation rapide
 
 ```bash
 git clone https://github.com/Wr1ghtShade/SMS-Gateway.git
@@ -46,7 +46,7 @@ sudo systemctl start gateway-sms
 
 ---
 
-## Structure déployée
+## 📁 Structure déployée
 
 ```
 /var/www/sms-gateway/
@@ -63,7 +63,7 @@ sudo systemctl start gateway-sms
 
 ---
 
-## Commandes quotidiennes
+## 🛠️ Commandes quotidiennes
 
 ```bash
 # Statut
@@ -83,7 +83,7 @@ curl -s http://127.0.0.1:5000/router/status
 
 ---
 
-## Routes API
+## 🔌 Routes API
 
 | Méthode   | Route                  | Description                        |
 |-----------|------------------------|------------------------------------|
@@ -100,7 +100,7 @@ curl -s http://127.0.0.1:5000/router/status
 
 ---
 
-## Envoyer un SMS de test
+## 💬 Envoyer un SMS de test
 
 ```bash
 curl -s -X POST http://127.0.0.1:5000/send \
@@ -110,13 +110,21 @@ curl -s -X POST http://127.0.0.1:5000/send \
 
 ---
 
-## Intégration NUT (onduleur)
+## 🔗 Intégration avec des scripts externes
 
-Le script `/etc/nut/notify.sh` appelle `/send` en GET pour alerter par SMS lors de coupures secteur.
+L'endpoint `/send` accepte les requêtes GET avec paramètres URL, ce qui permet de l'appeler depuis n'importe quel script shell, cron ou outil tiers :
+
+```bash
+curl -s "http://127.0.0.1:5000/send" \
+  --data-urlencode "number=06XXXXXXXX" \
+  --data-urlencode "message=Alerte : événement détecté"
+```
+
+Exemples d'usage : alertes onduleur (NUT), supervision système, notifications cron, scripts de monitoring.
 
 ---
 
-## Désinstallation
+## 🗑️ Désinstallation
 
 ```bash
 sudo systemctl stop gateway-sms
