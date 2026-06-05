@@ -15,40 +15,39 @@ import logging
 from adapters import get_adapter, ADAPTER_META, NotSupportedError
 
 # ---------------------------------------------------------------------------
-# CONFIG — chargée depuis router_config.json (fallback: .env pour Huawei)
+# CONFIG — router_config.json est la seule source de vérité.
+# S'il n'existe pas, le service démarre sans routeur configuré :
+# les routes SMS renvoient 503 jusqu'à ce que l'utilisateur
+# configure via l'onglet ⚙️ Config.
 # ---------------------------------------------------------------------------
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'router_config.json')
+_CONFIG_EMPTY = {'brand': '', 'ip': '', 'user': '', 'pass': ''}
 
 def load_config() -> dict:
-    """Load router config from JSON. Falls back to .env for Huawei."""
+    """Load router config from router_config.json, or return empty config."""
     if os.path.exists(CONFIG_PATH):
         with open(CONFIG_PATH) as f:
             return json.load(f)
-    # Backward-compat fallback
-    from dotenv import load_dotenv
-    load_dotenv()
-    return {
-        'brand': 'huawei',
-        'ip':   os.getenv('HUAWEI_IP', '192.168.16.1'),
-        'user': os.getenv('HUAWEI_USER', 'admin'),
-        'pass': os.getenv('HUAWEI_PASS', ''),
-    }
+    return dict(_CONFIG_EMPTY)
 
 def save_config(cfg: dict) -> None:
     with open(CONFIG_PATH, 'w') as f:
         json.dump(cfg, f, indent=2)
 
-# Module-level adapter (recreated on config change)
+# Module-level adapter (None si pas encore configuré)
 _config  = load_config()
-_adapter = get_adapter(_config)
+_adapter = get_adapter(_config) if _config.get('pass') else None
 
 def current_adapter():
+    if _adapter is None:
+        from flask import abort
+        abort(503, description="Routeur non configuré. Rendez-vous dans l'onglet ⚙️ Config.")
     return _adapter
 
 def reload_adapter(cfg: dict):
     global _adapter, _config
     _config  = cfg
-    _adapter = get_adapter(cfg)
+    _adapter = get_adapter(cfg) if cfg.get('pass') else None
 
 # ---------------------------------------------------------------------------
 # LOGGING — sanitise le mot de passe de tout log/traceback

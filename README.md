@@ -66,14 +66,18 @@ sudo systemctl start gateway-sms
 
 Ouvrir l'interface dans le navigateur : **`http://<ip-du-serveur>:5000`**
 
-Aller dans l'onglet **⚙️ Config** pour renseigner la marque, l'IP et les identifiants du routeur, puis cliquer sur **Tester** puis **Sauvegarder**.
+Aller dans l'onglet **⚙️ Config**, renseigner la marque, l'IP et les identifiants du routeur, puis cliquer sur **Tester** puis **Sauvegarder**.
 
-> **Fallback Huawei** : il est aussi possible de renseigner les identifiants manuellement dans `/var/www/sms-gateway/.env` avant le premier démarrage :
-> ```env
-> HUAWEI_USER=admin
-> HUAWEI_PASS=votre_mot_de_passe
-> HUAWEI_IP=192.168.16.1
+> **Alternative** : créer manuellement `/var/www/sms-gateway/router_config.json` avant le premier démarrage :
+> ```json
+> {
+>   "brand": "huawei",
+>   "ip": "192.168.16.1",
+>   "user": "admin",
+>   "pass": "votre_mot_de_passe"
+> }
 > ```
+> Valeurs possibles pour `brand` : `huawei`, `netgear`.
 
 ---
 
@@ -90,9 +94,7 @@ Aller dans l'onglet **⚙️ Config** pour renseigner la marque, l'IP et les ide
 ├── templates/index.html   # Frontend HTML/CSS/JS
 ├── static/favicon.svg
 ├── requirements.txt
-├── router_config.json     # Config active (non versionné, écrit par l'UI)
-├── .env                   # Fallback Huawei legacy (non versionné)
-├── .env.example           # Template vide
+├── router_config.json     # Config active (non versionné, écrit par l'UI ou à la main)
 ├── fix-perms.sh           # Remet les permissions après édition root
 ├── gateway-sms.service    # Définition systemd
 └── venv/                  # Environnement Python
