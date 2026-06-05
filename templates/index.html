@@ -386,6 +386,7 @@
         let routerCaps = { supports_inbox: true, supports_outbox: true };
         let allAdapters = {};
         let selectedBrand = 'huawei';
+        let _configCache = null;  // préchargé au démarrage
 
         async function fetchCapabilities() {
             try {
@@ -407,14 +408,21 @@
             }
         }
 
+        async function prefetchConfig() {
+            try {
+                const res  = await fetch('/config');
+                _configCache = await res.json();
+            } catch(e) {}
+        }
+
         fetchCapabilities();
+        prefetchConfig();
 
         // ── CONFIG PAGE ──────────────────────────────────────────────────────
 
         async function loadConfigPage() {
             try {
-                const res  = await fetch('/config');
-                const data = await res.json();
+                const data = _configCache || await fetch('/config').then(r => r.json());
                 allAdapters  = data.adapters || {};
                 selectedBrand = data.config?.brand || 'huawei';
 
@@ -505,6 +513,7 @@
                 const data = await res.json();
                 if (res.ok) {
                     showConfigStatus('ok', `✅ ${escapeHTML(data.message)}`);
+                    _configCache = null;  // invalider le cache
                     fetchCapabilities();  // Refresh outbox tab state
                 } else {
                     showConfigStatus('err', `❌ ${escapeHTML(data.message)}`);
