@@ -4,6 +4,7 @@ from .huawei import HuaweiAdapter
 from .netgear import NetgearAdapter
 from .glinet import GlinetAdapter
 from .tplink import TplinkAdapter
+from .zte import ZteAdapter
 
 # Registry: brand slug → adapter class
 ADAPTERS: dict = {
@@ -11,6 +12,7 @@ ADAPTERS: dict = {
     'netgear': NetgearAdapter,
     'glinet':  GlinetAdapter,
     'tplink':  TplinkAdapter,
+    'zte':     ZteAdapter,
 }
 
 # Human-readable labels and field requirements for the config UI
@@ -32,6 +34,11 @@ ADAPTER_META: dict = {
     },
     'tplink': {
         'label': 'TP-Link MR (MR6400, MR600, MR200, MR500…)',
+        'needs_user': False,
+        'supports_outbox': False,
+    },
+    'zte': {
+        'label': 'ZTE MC/MF (MC801a, MC889, MF286, MF289…)',
         'needs_user': False,
         'supports_outbox': False,
     },
@@ -60,5 +67,7 @@ def get_adapter(config: dict) -> RouterAdapter:
         return GlinetAdapter(ip=ip, password=password, user=user)
     if brand == 'tplink':
         return TplinkAdapter(ip=ip, password=password)
+    if brand == 'zte':
+        return ZteAdapter(ip=ip, password=password)
 
     raise ValueError(f"Marque non implémentée : {brand!r}")
