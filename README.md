@@ -1,6 +1,6 @@
 # 📡 SMS Gateway — Guide d'installation
 
-Interface web Flask pour envoyer et recevoir des SMS via un routeur **4G/5G** (Huawei, Netgear…). Rate limiting, logging sécurisé (mot de passe masqué), validation des numéros FR.
+Interface web Flask pour envoyer et recevoir des SMS via un routeur **4G/5G** (Huawei, Netgear, GL.iNet, TP-Link, ZTE). Rate limiting, logging sécurisé (mot de passe masqué), validation des numéros FR.
 
 ## 🖼️ Aperçu
 
@@ -32,7 +32,7 @@ L'onglet **⚙️ Config** permet de connecter n'importe quel routeur 4G/5G supp
 
 **Champs de connexion :**
 - **Adresse IP** du routeur sur le réseau local
-- **Utilisateur** (non requis pour Netgear)
+- **Utilisateur** (non requis pour Netgear, TP-Link et ZTE — username fixe côté firmware)
 - **Mot de passe**
 
 Le bouton **Tester** vérifie la connexion sans sauvegarder. Le bouton **Sauvegarder** applique la configuration immédiatement, sans redémarrage du service.
@@ -47,7 +47,7 @@ Le bouton **Tester** vérifie la connexion sans sauvegarder. Le bouton **Sauvega
 |---------------|---------------------------------------------------------------|
 | OS            | Debian 11+, Raspbian (aarch64)                                |
 | Python        | 3.9+                                                          |
-| Routeur       | Huawei, Netgear ou GL.iNet LTE/5G sur le réseau local         |
+| Routeur       | Huawei, Netgear, GL.iNet, TP-Link ou ZTE LTE/5G sur le réseau local |
 | Accès internet | Pour apt + pip (installation uniquement)                     |
 
 ---
