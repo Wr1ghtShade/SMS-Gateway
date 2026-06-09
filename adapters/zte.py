@@ -17,6 +17,10 @@ Write operations require an AD token:
   Obtained by querying cmd=wa_inner_version,cr_version,RD.
 
 SMS content is UCS-2 hex (UTF-16 BE).
+
+Thread-safety: each public method creates its own requests.Session, uses it
+for the full operation, then closes it. No session state is stored on the
+instance — safe for concurrent Flask requests.
 """
 import codecs
 import hashlib
@@ -43,12 +47,11 @@ class ZteAdapter(RouterAdapter):
         self._ip       = ip
         self._password = password
         self._base     = f'http://{ip}'
-        self._session  = None
 
     # ── Private helpers ──────────────────────────────────────────────────────
 
-    def _get(self, params: dict) -> dict:
-        r = self._session.get(
+    def _get(self, session: requests.Session, params: dict) -> dict:
+        r = session.get(
             f'{self._base}/goform/goform_get_cmd_process',
             params={'isTest': 'false', **params},
             headers={'Referer': f'{self._base}/'},
@@ -57,20 +60,23 @@ class ZteAdapter(RouterAdapter):
         r.raise_for_status()
         return r.json()
 
-    def _post(self, data: dict) -> dict:
-        r = self._session.post(
+    def _post(self, session: requests.Session, data: dict) -> dict:
+        r = session.post(
             f'{self._base}/goform/goform_set_cmd_process',
             data={'isTest': 'false', **data},
             headers={
-                'Referer': f'{self._base}/',
-                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-            },
+                'Referer': f'{self._base}/'},
             timeout=15,
         )
         r.raise_for_status()
         return r.json()
 
     def _login(self) -> requests.Session:
+        """Open a new session, authenticate and return it.
+
+        The caller owns the session and must call session.close() when done.
+        Nothing is stored on self — each call is independent.
+        """
         session = requests.Session()
         session.headers['User-Agent'] = (
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -100,16 +106,16 @@ class ZteAdapter(RouterAdapter):
         r_login.raise_for_status()
         result = r_login.json().get('result', '')
         if result != '0':
+            session.close()
             raise ConnectionError(
                 f'Connexion ZTE échouée ({self._ip}) — résultat: {result!r}'
             )
 
-        self._session = session
         return session
 
-    def _get_ad(self) -> str:
+    def _get_ad(self, session: requests.Session) -> str:
         """Compute the AD write-token from router version fields."""
-        data = self._get({'cmd': _AD_FIELDS, 'multi_data': '1'})
+        data = self._get(session, {'cmd': _AD_FIELDS, 'multi_data': '1'})
         m1 = hashlib.md5(
             (data['wa_inner_version'] + data['cr_version']).encode()
         ).hexdigest()
@@ -143,12 +149,12 @@ class ZteAdapter(RouterAdapter):
     # ── RouterAdapter interface ───────────────────────────────────────────────
 
     def send_sms(self, numbers: list, message: str) -> None:
-        self._login()
+        session = self._login()
         try:
-            ad = self._get_ad()
+            ad = self._get_ad(session)
             body_hex = self._encode_content(message)
             for number in numbers:
-                result = self._post({
+                result = self._post(session, {
                     'goformId':    'SEND_SMS',
                     'Number':      number,
                     'MessageBody': body_hex,
@@ -159,13 +165,13 @@ class ZteAdapter(RouterAdapter):
                 if result.get('result') not in ('success', '0', 0):
                     log.warning('ZTE send_sms result inattendu : %s', result)
         finally:
-            self._session = None
+            session.close()
 
     def get_inbox(self, page: int = 1, per_page: int = 20) -> dict:
-        self._login()
+        session = self._login()
         try:
             # ZTE pages are 0-indexed
-            data = self._get({
+            data = self._get(session, {
                 'cmd':           'sms_data_total',
                 'page':          str(page - 1),
                 'data_per_page': str(per_page),
@@ -174,7 +180,7 @@ class ZteAdapter(RouterAdapter):
                 'order_by':      'order by id desc',
             })
         finally:
-            self._session = None
+            session.close()
 
         messages = []
         for msg in (data.get('messages') or []):
@@ -196,40 +202,40 @@ class ZteAdapter(RouterAdapter):
         raise NotSupportedError("ZTE n'expose pas la boîte d'envoi via son API.")
 
     def delete_sms(self, index) -> None:
-        self._login()
+        session = self._login()
         try:
-            ad = self._get_ad()
-            self._post({
+            ad = self._get_ad(session)
+            self._post(session, {
                 'goformId':    'DELETE_SMS',
                 'msg_id':      str(index),
                 'notCallback': 'true',
                 'AD':          ad,
             })
         finally:
-            self._session = None
+            session.close()
 
     def delete_sms_batch(self, indices: list) -> int:
         """Single session for the whole batch."""
-        self._login()
+        session = self._login()
         try:
-            ad = self._get_ad()
+            ad = self._get_ad(session)
             for idx in indices:
-                self._post({
+                self._post(session, {
                     'goformId':    'DELETE_SMS',
                     'msg_id':      str(idx),
                     'notCallback': 'true',
                     'AD':          ad,
                 })
         finally:
-            self._session = None
+            session.close()
         return len(indices)
 
     def get_status(self) -> dict:
-        self._login()
+        session = self._login()
         try:
-            data = self._get({'cmd': _SIG_FIELDS, 'multi_data': '1'})
+            data = self._get(session, {'cmd': _SIG_FIELDS, 'multi_data': '1'})
         finally:
-            self._session = None
+            session.close()
 
         try:
             bars = int(data.get('signalbar', 0))
@@ -244,6 +250,6 @@ class ZteAdapter(RouterAdapter):
         }
 
     def check_health(self) -> dict:
-        self._login()
-        self._session = None
+        session = self._login()
+        session.close()   # login succeeded → router is reachable
         return {'status': 'ok', 'router': 'reachable'}

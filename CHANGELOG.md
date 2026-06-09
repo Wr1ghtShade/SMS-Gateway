@@ -2,6 +2,22 @@
 
 ---
 
+## [1.00.31] — 2026-06-09
+### Sécurité & robustesse (code review)
+- **`save_config`** atomique : écriture dans `.tmp` + `os.replace()` — plus de corruption JSON en cas de crash/coupure
+- **`/send`** : méthode GET retirée (numéro + message ne transitent plus en clair dans l'URL et les logs)
+- **Security headers** : `Content-Security-Policy`, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` ajoutés sur toutes les réponses Flask
+- **ZTE adapter** : session HTTP locale par méthode (thread-safe) — `self._session` supprimé ; `check_health` ferme proprement la connexion
+- **Background threads** : `perform_bulk_delete` et `perform_bulk_send` utilisent `_get_adapter_for_thread()` au lieu de `current_adapter()` — plus de `flask.abort()` depuis un thread sans contexte d'application
+- **`BulkDeleteState.error`** : type corrigé `str = None` → `Optional[str] = None`
+- **SSE stream** : deadline portée de 2s à 5s + les logs d'une opération à completion rapide sont correctement renvoyés
+- **JS** : dead code supprimé (groupes mode `simple` jamais implémenté dans `refreshGroupSelects`)
+- **`previewFile`** : limite 5 MB ajoutée — les fichiers trop lourds ne bloquent plus le thread JS
+- **README.md** : ajouté en anglais avec screenshots, routes API, intégration externe
+- **`fix-perms.sh`** et dossier `docs/` ajoutés au script de sync
+
+---
+
 ## [1.00.30] — 2026-06-06
 ### Sécurité & robustesse (audit code review)
 - **`load_config`** robustifié : JSON corrompu ou racine non-dict → fallback config vide + log d'erreur (le service ne crashe plus au démarrage)

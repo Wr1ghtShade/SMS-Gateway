@@ -3,6 +3,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from dataclasses import dataclass, field
 from functools import wraps
+from typing import Optional
 import ipaddress
 import json
 import os
@@ -47,8 +48,11 @@ def load_config() -> dict:
         return dict(_CONFIG_EMPTY)
 
 def save_config(cfg: dict) -> None:
-    with open(CONFIG_PATH, 'w') as f:
+    # Atomic write: write to .tmp then rename — prevents JSON corruption on crash
+    tmp = CONFIG_PATH + '.tmp'
+    with open(tmp, 'w') as f:
         json.dump(cfg, f, indent=2)
+    os.replace(tmp, CONFIG_PATH)
 
 # Module-level adapter (None si pas encore configuré).
 # _adapter_lock protège les réassignations concurrentes de _config / _adapter.
@@ -129,10 +133,10 @@ def validate_number(number: str) -> bool:
 # ---------------------------------------------------------------------------
 @dataclass
 class BulkDeleteState:
-    lock:          threading.Lock = field(default_factory=threading.Lock)
-    in_progress:   bool  = False
-    deleted_count: int   = 0
-    error:         str   = None
+    lock:          threading.Lock  = field(default_factory=threading.Lock)
+    in_progress:   bool            = False
+    deleted_count: int             = 0
+    error:         Optional[str]   = None
 
 @dataclass
 class BulkSendState:
@@ -161,6 +165,19 @@ ROUTER_STATUS_TTL = 5  # secondes
 app = Flask(__name__)
 limiter = Limiter(get_remote_address, app=app, default_limits=[], storage_uri='memory://')
 CSRF_TOKEN = secrets.token_hex(32)
+
+@app.after_request
+def set_security_headers(response):
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:;"
+    )
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['Referrer-Policy'] = 'strict-origin'
+    return response
 
 def csrf_required(f):
     @wraps(f)
@@ -281,7 +298,7 @@ def capabilities():
 # ---------------------------------------------------------------------------
 # ROUTES — SMS
 # ---------------------------------------------------------------------------
-@app.route('/send', methods=['GET', 'POST'])
+@app.route('/send', methods=['POST'])
 @limiter.limit('200 per 10 minutes')
 @csrf_required
 def send_sms_api():
@@ -290,8 +307,9 @@ def send_sms_api():
         number  = data.get('number')
         message = data.get('message')
     else:
-        number  = request.args.get('number')
-        message = request.args.get('message')
+        # request.values covers both JSON body and form-encoded POST data
+        number  = request.values.get('number')
+        message = request.values.get('message')
 
     if not number or not message:
         return jsonify({'status': 'error', 'message': 'Données manquantes'}), 400
@@ -350,15 +368,29 @@ def delete_sms():
         return jsonify({'status': 'error', 'message': f'Impossible de supprimer : {sanitize_exception(e)}'}), 500
 
 # ---------------------------------------------------------------------------
+# BACKGROUND THREAD HELPER — never calls flask.abort() (no app context)
+# ---------------------------------------------------------------------------
+def _get_adapter_for_thread():
+    """Return the current adapter or None, safe to call from background threads."""
+    with _adapter_lock:
+        return _adapter
+
+# ---------------------------------------------------------------------------
 # ROUTES — delete all outbox (background)
 # ---------------------------------------------------------------------------
 def perform_bulk_delete():
+    adapter = _get_adapter_for_thread()
+    if adapter is None:
+        with delete_state.lock:
+            delete_state.error = "Routeur non configuré."
+            delete_state.in_progress = False
+        return
     try:
         def _progress(count):
             with delete_state.lock:
                 delete_state.deleted_count = count
 
-        current_adapter().delete_outbox_all(on_progress=_progress)
+        adapter.delete_outbox_all(on_progress=_progress)
     except Exception as e:
         logger.error('ERREUR SUPPRESSION ARRIÈRE-PLAN', exc_info=True)
         with delete_state.lock:
@@ -397,6 +429,12 @@ def delete_all_sent_status():
 # ROUTES — bulk send
 # ---------------------------------------------------------------------------
 def perform_bulk_send(tasks, delay=1.0):
+    adapter = _get_adapter_for_thread()
+    if adapter is None:
+        with send_state.lock:
+            send_state.logs.append({'number': '—', 'status': 'error', 'detail': 'Routeur non configuré.'})
+            send_state.in_progress = False
+        return
     try:
         for task in tasks:
             with send_state.lock:
@@ -411,7 +449,7 @@ def perform_bulk_send(tasks, delay=1.0):
                     send_state.logs.append({'number': number, 'status': 'error', 'detail': 'Numéro invalide'})
                 continue
             try:
-                current_adapter().send_sms([number], message)
+                adapter.send_sms([number], message)
                 with send_state.lock:
                     send_state.sent += 1
                     send_state.logs.append({'number': number, 'status': 'ok'})
@@ -468,12 +506,20 @@ def send_bulk_stream():
     import json as _json
 
     def generate():
-        deadline = time.time() + 2
+        deadline = time.time() + 5
         while not send_state.in_progress and time.time() < deadline:
             time.sleep(0.05)
 
         if not send_state.in_progress:
-            yield f"data: {_json.dumps({'done': True, 'sent': 0, 'errors': 0, 'total': 0})}\n\n"
+            # Fast-completion race: operation may have finished before stream connected
+            with send_state.lock:
+                logs   = list(send_state.logs)
+                sent   = send_state.sent
+                errors = send_state.errors
+                total  = send_state.total
+            for log in logs:
+                yield f"data: {_json.dumps(log)}\n\n"
+            yield f"data: {_json.dumps({'done': True, 'sent': sent, 'errors': errors, 'total': total})}\n\n"
             return
 
         last = 0

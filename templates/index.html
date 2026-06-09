@@ -383,7 +383,7 @@
         let outboxPage  = 1;
         let notifKnownIndices = null;
         let unreadCount = 0;
-        const loadedGroup = { simple: null, custom: null };
+        const loadedGroup = { custom: null };
 
         // Router capabilities (fetched on load)
         let routerCaps = { supports_inbox: true, supports_outbox: true };
@@ -717,7 +717,7 @@
         function refreshGroupSelects() {
             const groups = getGroups();
             const names = Object.keys(groups).sort();
-            ['simple', 'custom'].forEach(mode => {
+            ['custom'].forEach(mode => {
                 const sel = document.getElementById(`group-select-${mode}`);
                 if (!sel) return;
                 const prev = sel.value;
@@ -969,19 +969,24 @@
         }
 
         // PREVISUALISATION FICHIER
+        const PREVIEW_MAX_SIZE = 5 * 1024 * 1024; // 5 MB
         function previewFile(inputId, previewId) {
             const file = document.getElementById(inputId).files[0];
             const previewBox = document.getElementById(previewId);
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const all = e.target.result.split('\n').filter(l => l.trim());
-                    const preview = all.slice(0, 5);
-                    previewBox.style.display = 'block';
-                    previewBox.innerText = `--- APERÇU (${all.length} numéro${all.length > 1 ? 's' : ''}) ---\n` + preview.join('\n') + (all.length > 5 ? `\n… +${all.length - 5} de plus` : '');
-                };
-                reader.readAsText(file);
+            if (!file) return;
+            if (file.size > PREVIEW_MAX_SIZE) {
+                previewBox.style.display = 'block';
+                previewBox.innerText = `⚠️ Fichier trop volumineux pour l'aperçu (${(file.size / 1024 / 1024).toFixed(1)} MB — max 5 MB)`;
+                return;
             }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const all = e.target.result.split('\n').filter(l => l.trim());
+                const preview = all.slice(0, 5);
+                previewBox.style.display = 'block';
+                previewBox.innerText = `--- APERÇU (${all.length} numéro${all.length > 1 ? 's' : ''}) ---\n` + preview.join('\n') + (all.length > 5 ? `\n… +${all.length - 5} de plus` : '');
+            };
+            reader.readAsText(file);
         }
 
         async function stopSend() {
