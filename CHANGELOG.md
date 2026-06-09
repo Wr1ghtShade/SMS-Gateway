@@ -2,6 +2,12 @@
 
 ---
 
+## [1.00.33] — 2026-06-09
+### Fix
+- **`/send`** : décorateur `@csrf_required` retiré — les appels POST JSON depuis Home Assistant (et autres intégrations LAN) n'incluent pas de header `X-CSRF-Token`, ce qui causait un 403. Risque accepté pour un déploiement LAN-only.
+
+---
+
 ## [1.00.32] — 2026-06-09
 ### Fix
 - **`/send`** : méthode GET rétablie — les intégrations LAN (Home Assistant, NUT, scripts shell) n'utilisent pas de CSRF token et appelaient l'endpoint en GET. Risque accepté pour un déploiement LAN-only (note ajoutée dans le README).

@@ -300,7 +300,6 @@ def capabilities():
 # ---------------------------------------------------------------------------
 @app.route('/send', methods=['GET', 'POST'])
 @limiter.limit('200 per 10 minutes')
-@csrf_required
 def send_sms_api():
     if request.is_json:
         data    = request.get_json()
