@@ -132,7 +132,7 @@ curl -s http://127.0.0.1:5000/router/status
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| POST | `/send` | Send an SMS |
+| GET / POST | `/send` | Send an SMS |
 | POST | `/send_bulk` | Background bulk send |
 | GET | `/send_bulk/status` | Bulk send status |
 | POST | `/send_bulk/stop` | Cancel bulk send |
@@ -164,17 +164,29 @@ curl -s -X POST http://127.0.0.1:5000/send \
 
 ## 🔗 External integration (scripts, cron, monitoring)
 
-The `/send` endpoint accepts POST requests with form-encoded data, making it easy to call from any shell script, cron job or monitoring tool:
+The `/send` endpoint accepts both GET and POST requests, making it easy to call from any shell script, cron job, Home Assistant automation or monitoring tool:
 
 ```bash
-TOKEN=$(curl -sc /tmp/sms_cookies http://127.0.0.1:5000/ | grep -oP '(?<=content=")[^"]+')
+# Simple GET call (Home Assistant, NUT, shell scripts)
+curl -s "http://127.0.0.1:5000/send?number=06XXXXXXXX&message=Alert:+event+detected"
+
+# POST with form data
 curl -s -X POST http://127.0.0.1:5000/send \
-  -H "X-CSRF-Token: $TOKEN" \
   --data-urlencode "number=06XXXXXXXX" \
   --data-urlencode "message=Alert: event detected"
 ```
 
-Use cases: UPS alerts (NUT), system monitoring, cron notifications, watchdog scripts.
+**Home Assistant example** (`configuration.yaml`):
+```yaml
+rest_command:
+  send_sms:
+    url: "http://<pi-ip>:5000/send?number={{ number }}&message={{ message }}"
+    method: GET
+```
+
+> **Note:** GET requests expose the phone number and message in plain text in server access logs and browser history. This is acceptable for a **LAN-only deployment** (Raspberry Pi on a private network, not exposed to the internet). If your instance is publicly reachable, use POST with a CSRF token instead.
+
+Use cases: UPS alerts (NUT), Home Assistant automations, system monitoring, cron notifications, watchdog scripts.
 
 ---
 

@@ -2,6 +2,12 @@
 
 ---
 
+## [1.00.32] — 2026-06-09
+### Fix
+- **`/send`** : méthode GET rétablie — les intégrations LAN (Home Assistant, NUT, scripts shell) n'utilisent pas de CSRF token et appelaient l'endpoint en GET. Risque accepté pour un déploiement LAN-only (note ajoutée dans le README).
+
+---
+
 ## [1.00.31] — 2026-06-09
 ### Sécurité & robustesse (code review)
 - **`save_config`** atomique : écriture dans `.tmp` + `os.replace()` — plus de corruption JSON en cas de crash/coupure

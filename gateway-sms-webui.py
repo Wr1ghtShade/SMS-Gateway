@@ -298,7 +298,7 @@ def capabilities():
 # ---------------------------------------------------------------------------
 # ROUTES — SMS
 # ---------------------------------------------------------------------------
-@app.route('/send', methods=['POST'])
+@app.route('/send', methods=['GET', 'POST'])
 @limiter.limit('200 per 10 minutes')
 @csrf_required
 def send_sms_api():
@@ -307,7 +307,7 @@ def send_sms_api():
         number  = data.get('number')
         message = data.get('message')
     else:
-        # request.values covers both JSON body and form-encoded POST data
+        # request.values covers query string (GET) and form-encoded POST data
         number  = request.values.get('number')
         message = request.values.get('message')
 
