@@ -159,6 +159,19 @@ curl -s -X POST http://127.0.0.1:5000/send \
 
 > No CSRF token required on `/send` — external integrations (Home Assistant, NUT, scripts) don't have access to the HTML page to retrieve a token. CSRF protection is intentionally disabled on this endpoint for LAN-only deployments. All other sensitive routes (`/config`, `/delete`, etc.) remain CSRF-protected.
 
+**Accepted number formats** — spaces, dashes and dots are automatically stripped before validation and sending:
+
+| Format | Example |
+|--------|---------|
+| `06XXXXXXXX` | `0612345678` |
+| `07XXXXXXXX` | `0712345678` |
+| `06 XX XX XX XX` | `06 12 34 56 78` |
+| `06-XX-XX-XX-XX` | `06-12-34-56-78` |
+| `06.XX.XX.XX.XX` | `06.12.34.56.78` |
+| `+336XXXXXXXX` | `+33612345678` |
+| `+336 XX XX XX XX` | `+336 12 34 56 78` |
+| `+337XXXXXXXX` | `+33712345678` |
+
 ---
 
 ## 🔗 External integration (scripts, cron, monitoring)

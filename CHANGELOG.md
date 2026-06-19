@@ -2,6 +2,12 @@
 
 ---
 
+## [1.00.34] — 2026-06-19
+### Fix
+- **`/send` & `/send_bulk`** : ajout de `normalize_number()` — les numéros avec espaces (`06 XX XX XX XX`), tirets (`06-XX-XX-XX-XX`) ou points (`06.XX.XX.XX.XX`) sont désormais nettoyés avant validation **et** avant envoi au routeur. Formats supportés : `06`, `07`, `+336`, `+337` avec ou sans séparateurs.
+
+---
+
 ## [1.00.33] — 2026-06-09
 ### Fix
 - **`/send`** : décorateur `@csrf_required` retiré — les appels POST JSON depuis Home Assistant (et autres intégrations LAN) n'incluent pas de header `X-CSRF-Token`, ce qui causait un 403. Risque accepté pour un déploiement LAN-only.

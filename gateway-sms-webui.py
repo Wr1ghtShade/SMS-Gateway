@@ -125,8 +125,11 @@ def validate_router_ip(ip: str) -> bool:
     except ValueError:
         return False
 
+def normalize_number(number: str) -> str:
+    return number.replace(' ', '').replace('-', '').replace('.', '')
+
 def validate_number(number: str) -> bool:
-    return bool(PHONE_RE.match(number.replace(' ', '').replace('-', '')))
+    return bool(PHONE_RE.match(normalize_number(number)))
 
 # ---------------------------------------------------------------------------
 # ÉTAT ARRIÈRE-PLAN
@@ -312,6 +315,7 @@ def send_sms_api():
 
     if not number or not message:
         return jsonify({'status': 'error', 'message': 'Données manquantes'}), 400
+    number = normalize_number(number)
     if not validate_number(number):
         return jsonify({'status': 'error', 'message': f'Numéro invalide : {number}'}), 400
     if len(message) > MAX_MESSAGE_LENGTH:
@@ -440,7 +444,7 @@ def perform_bulk_send(tasks, delay=1.0):
                 if send_state.stop_requested:
                     send_state.logs.append({'number': '—', 'status': 'error', 'detail': 'Envoi annulé.'})
                     break
-            number  = task.get('number', '')
+            number  = normalize_number(task.get('number', ''))
             message = task.get('message', '')
             if not validate_number(number):
                 with send_state.lock:
