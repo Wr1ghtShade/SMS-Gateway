@@ -171,6 +171,7 @@ curl -s -X POST http://127.0.0.1:5000/send \
 | `+336XXXXXXXX` | `+33612345678` |
 | `+336 XX XX XX XX` | `+336 12 34 56 78` |
 | `+337XXXXXXXX` | `+33712345678` |
+| Short code opérateur (5 chiffres) | `33700` |
 
 ---
 

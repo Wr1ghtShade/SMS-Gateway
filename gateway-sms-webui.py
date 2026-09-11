@@ -120,7 +120,9 @@ def sanitize_exception(e) -> str:
 MAX_MESSAGE_LENGTH = 480   # ~3 SMS GSM-7
 MAX_BULK_TASKS     = 200
 
-PHONE_RE = re.compile(r'^(0[67][0-9]{8}|\+33[67][0-9]{8})$')
+# Mobiles FR (06/07 ou +336/+337) + short codes opérateurs à 5 chiffres
+# (ex: 33700 pour signaler un spam, désabonnements de services SMS surtaxés)
+PHONE_RE = re.compile(r'^(0[67][0-9]{8}|\+33[67][0-9]{8}|[0-9]{5})$')
 
 # ---------------------------------------------------------------------------
 # VALIDATION IP — anti-SSRF : seules les IPv4 privées sont acceptées
